@@ -75,8 +75,6 @@ def venues():
         .filter(Show.start_time>datetime.now())\
         .count()
 
-      print('upcoming: ', upcoming)
-      print(venue.name)
       venue_json.append({
         "id": venue.id,
         "name": venue.name,
@@ -127,16 +125,19 @@ def show_venue(venue_id):
   upcoming_json = []
   selvenue = Venue.query.get(venue_id)
   
-  pastshows =  Show.query\
-    .filter_by(venue_id=selvenue.id)\
+  past_shows = db.session.query(Show)\
+    .join(Venue)\
+    .filter(Show.venue_id==venue_id)\
     .filter(Show.start_time<datetime.now())\
-    .all()
-  upcomingshows =  Show.query\
-    .filter_by(venue_id=selvenue.id)\
-    .filter(Show.start_time>datetime.now())\
-    .all()
+    .all() 
 
-  for show in pastshows:
+  upcoming_shows = db.session.query(Show)\
+    .join(Venue)\
+    .filter(Show.venue_id==venue_id)\
+    .filter(Show.start_time>datetime.now())\
+    .all() 
+
+  for show in past_shows:
     pastshows_json.append({
       "artist_id": show.artist.id,
       "artist_name": show.artist.name,
@@ -144,7 +145,7 @@ def show_venue(venue_id):
       "start_time": show.start_time.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     })
 
-  for show in upcomingshows:
+  for show in upcoming_shows:
     upcoming_json.append({
       "artist_id": show.artist.id,
       "artist_name": show.artist.name,
@@ -305,18 +306,20 @@ def show_artist(artist_id):
   pastshows_json = []
   upcoming_json = []
   selartist = Artist.query.get(artist_id)
- 
-  pastshows =  Show.query\
-    .filter_by(artist_id=selartist.id)\
+  
+  past_shows = db.session.query(Show)\
+    .join(Venue)\
+    .filter(Show.artist_id==artist_id)\
     .filter(Show.start_time<datetime.now())\
-    .all()
+    .all() 
 
-  upcomingshows =  Show.query\
-    .filter_by(artist_id=selartist.id)\
-    .filter(Show.start_time>datetime.now())\
-    .all()
+  upcoming_shows = db.session.query(Show)\
+  .join(Venue)\
+  .filter(Show.artist_id==artist_id)\
+  .filter(Show.start_time>datetime.now())\
+  .all() 
 
-  for show in pastshows:
+  for show in past_shows:
     pastshows_json.append({
       "venue_id": show.venue.id,
       "venue_name": show.venue.name,
@@ -324,7 +327,7 @@ def show_artist(artist_id):
       "start_time": show.start_time.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     })
 
-  for show in upcomingshows:
+  for show in upcoming_shows:
     upcoming_json.append({
       "venue_id": show.venue.id,
       "venue_name": show.venue.name,
@@ -374,37 +377,41 @@ def edit_artist(artist_id):
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
-
+  form = ArtistForm(meta={'csrf': False})
   artist = Artist.query.get(artist_id)
   error = False
 
-  try:
+  if form.validate_on_submit():
+    try:
 
-      artist.name=request.form['name']
-      artist.genres=request.form.getlist('genres')
-      artist.city=request.form['city']
-      artist.state=request.form['state']
-      artist.phone=request.form['phone']
-      artist.website=request.form['website_link']
-      artist.facebook_link=request.form['facebook_link']
-      artist.seeking_venue= True if 'seeking_venue' in request.form else False
-      artist.seeking_description=request.form['seeking_description']
-      artist.image_link=request.form['image_link']
+        artist.name=request.form['name']
+        artist.genres=request.form.getlist('genres')
+        artist.city=request.form['city']
+        artist.state=request.form['state']
+        artist.phone=request.form['phone']
+        artist.website=request.form['website_link']
+        artist.facebook_link=request.form['facebook_link']
+        artist.seeking_venue= True if 'seeking_venue' in request.form else False
+        artist.seeking_description=request.form['seeking_description']
+        artist.image_link=request.form['image_link']
 
-      db.session.commit()
+        db.session.commit()
 
-  except:
-      error = True
-      db.session.rollback()
-      print(sys.exc_info())
-  finally:
-      db.session.close()
-  if error:
-      flash('An error occurred. Artist ' + request.form['name'] + ' could not be updated.')
-      abort (400)
+    except:
+        error = True
+        db.session.rollback()
+        print(sys.exc_info())
+    finally:
+        db.session.close()
+    if error:
+        flash('An error occurred. Artist ' + request.form['name'] + ' could not be updated.')
+    else:
+        flash('Artist ' + request.form['name'] + ' was updated successfully listed!')   
   else:
-      flash('Artist ' + request.form['name'] + ' was updated successfully listed!')
-  
+    for error in form.errors:
+      for msg in form.errors[error]:
+        flash(msg)
+
   return redirect(url_for('show_artist', artist_id=artist_id))
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
@@ -428,37 +435,41 @@ def edit_venue(venue_id):
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
 def edit_venue_submission(venue_id):
-
+  form = VenueForm(meta={'csrf': False})
   venue = Venue.query.get(venue_id)
   error = False
 
-  try:
+  if form.validate_on_submit():
+    try:
 
-      venue.name=request.form['name']
-      venue.genres=request.form.getlist('genres')
-      venue.city=request.form['city']
-      venue.state=request.form['state']
-      venue.phone=request.form['phone']
-      venue.address=request.form['address']
-      venue.website=request.form['website_link']
-      venue.facebook_link=request.form['facebook_link']
-      venue.seeking_talent= True if 'seeking_talent' in request.form else False
-      venue.seeking_description=request.form['seeking_description']
-      venue.image_link=request.form['image_link']
+        venue.name=request.form['name']
+        venue.genres=request.form.getlist('genres')
+        venue.city=request.form['city']
+        venue.state=request.form['state']
+        venue.phone=request.form['phone']
+        venue.address=request.form['address']
+        venue.website=request.form['website_link']
+        venue.facebook_link=request.form['facebook_link']
+        venue.seeking_talent= True if 'seeking_talent' in request.form else False
+        venue.seeking_description=request.form['seeking_description']
+        venue.image_link=request.form['image_link']
 
-      db.session.commit()
+        db.session.commit()
 
-  except:
-      error = True
-      db.session.rollback()
-      print(sys.exc_info())
-  finally:
+    except:
+        error = True
+        db.session.rollback()
+        print(sys.exc_info())
+    finally:
       db.session.close()
-  if error:
-      flash('An error occurred. Venue ' + request.form['name'] + ' could not be updated.')
-      #abort (400)
+    if error:
+        flash('An error occurred. Venue ' + request.form['name'] + ' could not be updated.')
+    else:
+        flash('Venue ' + request.form['name'] + ' was updated successfully listed!')
   else:
-      flash('Venue ' + request.form['name'] + ' was updated successfully listed!')
+    for error in form.errors:
+      for msg in form.errors[error]:
+        flash(msg)
   
   return redirect(url_for('show_venue', venue_id=venue_id))
 
@@ -567,7 +578,6 @@ def create_show_submission():
       db.session.close()
   if error:
       flash('An error occurred. Show could not be listed.')
-      #abort (400)
   else:
       flash('Show was successfully listed!')
 
